@@ -10,8 +10,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
-#include <mpi.h>
-//#include "pnetcdf.h"
 
 const double pi        = 3.14159265358979323846264338327;   //Pi
 const double grav      = 9.8;                               //Gravitational acceleration (m / s^2)
@@ -123,7 +121,7 @@ int main(int argc, char **argv) {
   //So, you'll want to have nx_glob be twice as large as nz_glob
   nx_glob = 400;      //Number of total cells in the x-dirction
   nz_glob = 200;      //Number of total cells in the z-dirction
-  sim_time = 1500;     //How many seconds to run the simulation
+  sim_time = 10;     //How many seconds to run the simulation
   output_freq = 10;   //How frequently to output data to file (in seconds)
   //Model setup: DATA_SPEC_THERMAL or DATA_SPEC_COLLISION
   data_spec_int = DATA_SPEC_INJECTION;
@@ -132,6 +130,11 @@ int main(int argc, char **argv) {
   ///////////////////////////////////////////////////////////////////////////////////////
 
   init( &argc , &argv );
+
+#pragma acc data copyin(state_tmp[(nz+2*hs)*(nx+2*hs)*NUM_VARS],hy_dens_cell[nz+2*hs],hy_dens_theta_cell[nz+2*hs],hy_dens_int[nz+1],hy_dens_theta_int[nz+1],hy_pressure_int[nz+1]) \
+        create(flux[(nz+1)*(nx+1)*NUM_VARS],tend[nz*nx*NUM_VARS],sendbuf_l[hs*nz*NUM_VARS],sendbuf_r[hs*nz*NUM_VARS],recvbuf_l[hs*nz*NUM_VARS],recvbuf_r[hs*nz*NUM_VARS]) \
+        copy(state[(nz+2*hs)*(nx+2*hs)*NUM_VARS])
+{        
 
   //Output the initial state
   //output(state,etime);
@@ -152,10 +155,11 @@ int main(int argc, char **argv) {
     //If it's time for output, reset the counter, and do output
     if (output_counter >= output_freq) {
       output_counter = output_counter - output_freq;
+//#pragma acc update host(state[(nz+2*hs)*(nx+2*hs)*NUM_VARS])
 //      output(state,etime);
     }
   }
-
+}
 
   finalize();
 }
@@ -210,7 +214,7 @@ void semi_discrete_step( double *state_init , double *state_forcing , double *st
   }
 
   //Apply the tendencies to the fluid state
-#pragma omp parallel for private(inds,indt,i) collapse(2)
+#pragma acc parallel loop collapse(3) private(inds,indt) default(present)
   for (ll=0; ll<NUM_VARS; ll++) {
     for (k=0; k<nz; k++) {
       for (i=0; i<nx; i++) {
@@ -233,7 +237,7 @@ void compute_tendencies_x( double *state , double *flux , double *tend ) {
   //Compute the hyperviscosity coeficient
   hv_coef = -hv_beta * dx / (16*dt);
   //Compute fluxes in the x-direction for each cell
-#pragma omp parallel for private(inds,stencil,vals,d3_vals,r,u,w,t,p,ll,s,i)
+#pragma acc parallel loop collapse(2) private(ll,s,inds,stencil,vals,d3_vals,r,u,w,t,p) default(present)
   for (k=0; k<nz; k++) {
     for (i=0; i<nx+1; i++) {
       //Use fourth-order interpolation from four cell averages to compute the value at the interface in question
@@ -264,7 +268,7 @@ void compute_tendencies_x( double *state , double *flux , double *tend ) {
   }
 
   //Use the fluxes to compute tendencies for each cell
-#pragma omp parallel for private(i,indt,indf1,indf2) collapse(2)
+#pragma acc parallel loop collapse(3) private(indt,indf1,indf2) default(present)
   for (ll=0; ll<NUM_VARS; ll++) {
     for (k=0; k<nz; k++) {
       for (i=0; i<nx; i++) {
@@ -288,7 +292,7 @@ void compute_tendencies_z( double *state , double *flux , double *tend ) {
   //Compute the hyperviscosity coeficient
   hv_coef = -hv_beta * dz / (16*dt);
   //Compute fluxes in the x-direction for each cell
-#pragma omp parallel for private(inds,stencil,vals,d3_vals,r,u,w,t,p,ll,s,i)
+#pragma acc parallel loop collapse(2) private(ll,s,inds,stencil,vals,d3_vals,r,u,w,t,p) default(present)
   for (k=0; k<nz+1; k++) {
     for (i=0; i<nx; i++) {
       //Use fourth-order interpolation from four cell averages to compute the value at the interface in question
@@ -319,7 +323,7 @@ void compute_tendencies_z( double *state , double *flux , double *tend ) {
   }
 
   //Use the fluxes to compute tendencies for each cell
-#pragma omp parallel for private(i,indt,indf1,indf2) collapse(2)
+#pragma acc parallel loop collapse(3) private(indt,indf1,indf2) default(present)
   for (ll=0; ll<NUM_VARS; ll++) {
     for (k=0; k<nz; k++) {
       for (i=0; i<nx; i++) {
@@ -337,51 +341,24 @@ void compute_tendencies_z( double *state , double *flux , double *tend ) {
 }
 
 
-//Set this MPI task's halo values in the x-direction. This routine will require MPI
+//If we were using MPI, this is where we would prepare for a halo exchange in the x-direction.
 void set_halo_values_x( double *state ) {
-  int k, ll, ind_r, ind_u, ind_t, i, s, ierr;
+  int k, ll, ind_r, ind_u, ind_t, i;
   double z;
-  MPI_Request req_r[2], req_s[2];
 
-  //Prepost receives
-  ierr = MPI_Irecv(recvbuf_l,hs*nz*NUM_VARS,MPI_DOUBLE, left_rank,0,MPI_COMM_WORLD,&req_r[0]);
-  ierr = MPI_Irecv(recvbuf_r,hs*nz*NUM_VARS,MPI_DOUBLE,right_rank,1,MPI_COMM_WORLD,&req_r[1]);
-
-  //Pack the send buffers
-#pragma omp parallel for private(s) collapse(2)
+#pragma acc parallel loop collapse(2) default(present)
   for (ll=0; ll<NUM_VARS; ll++) {
     for (k=0; k<nz; k++) {
-      for (s=0; s<hs; s++) {
-        sendbuf_l[ll*nz*hs + k*hs + s] = state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + hs+s];
-        sendbuf_r[ll*nz*hs + k*hs + s] = state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + nx+s];
-      }
+      state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + 0      ] = state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + nx+hs-2];
+      state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + 1      ] = state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + nx+hs-1];
+      state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + nx+hs  ] = state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + hs     ];
+      state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + nx+hs+1] = state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + hs+1   ];
     }
   }
-
-  //Fire off the sends
-  ierr = MPI_Isend(sendbuf_l,hs*nz*NUM_VARS,MPI_DOUBLE, left_rank,1,MPI_COMM_WORLD,&req_s[0]);
-  ierr = MPI_Isend(sendbuf_r,hs*nz*NUM_VARS,MPI_DOUBLE,right_rank,0,MPI_COMM_WORLD,&req_s[1]);
-
-  //Wait for receives to finish
-  ierr = MPI_Waitall(2,req_r,MPI_STATUSES_IGNORE);
-
-  //Unpack the receive buffers
-#pragma omp parallel for private(s) collapse(2)
-  for (ll=0; ll<NUM_VARS; ll++) {
-    for (k=0; k<nz; k++) {
-      for (s=0; s<hs; s++) {
-        state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + s      ] = recvbuf_l[ll*nz*hs + k*hs + s];
-        state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + nx+hs+s] = recvbuf_r[ll*nz*hs + k*hs + s];
-      }
-    }
-  }
-
-  //Wait for sends to finish
-  ierr = MPI_Waitall(2,req_s,MPI_STATUSES_IGNORE);
 
   if (data_spec_int == DATA_SPEC_INJECTION) {
     if (myrank == 0) {
-#pragma omp parallel for private(z,ind_r,ind_u,ind_t) collapse(2)
+#pragma acc parallel loop collapse(2) private(z, ind_r, ind_u, ind_t) default(present)
       for (k=0; k<nz; k++) {
         for (i=0; i<hs; i++) {
           z = (k_beg + k+0.5)*dz;
@@ -399,13 +376,14 @@ void set_halo_values_x( double *state ) {
 }
 
 
-//Set this MPI task's halo values in the z-direction. This does not require MPI because there is no MPI
-//decomposition in the vertical direction
+//Set this task's halo values in the z-direction. Even if we were using MPI, this would not require MPI because there is no MPI
+//decomposition in the vertical direction.
 void set_halo_values_z( double *state ) {
   int          i, ll;
   const double mnt_width = xlen/8;
   double       x, xloc, mnt_deriv;
-#pragma omp parallel for private(x,xloc,mnt_deriv) collapse(2)
+
+#pragma acc parallel loop collapse(2) private(x, xloc, mnt_deriv) default(present)
   for (ll=0; ll<NUM_VARS; ll++) {
     for (i=0; i<nx+2*hs; i++) {
       if (ll == ID_WMOM) {
@@ -435,19 +413,16 @@ void set_halo_values_z( double *state ) {
   }
 }
 
-
 void init( int *argc , char ***argv ) {
   int    i, k, ii, kk, ll, ierr, inds, i_end;
   double x, z, r, u, w, t, hr, ht, nper;
-
-  ierr = MPI_Init(argc,argv);
 
   //Set the cell grid size
   dx = xlen / nx_glob;
   dz = zlen / nz_glob;
 
-  ierr = MPI_Comm_size(MPI_COMM_WORLD,&nranks);
-  ierr = MPI_Comm_rank(MPI_COMM_WORLD,&myrank);
+  myrank = 0;
+  nranks = 1;
   nper = ( (double) nx_glob ) / nranks;
   i_beg = round( nper* (myrank)    );
   i_end = round( nper*((myrank)+1) )-1;
@@ -496,13 +471,10 @@ void init( int *argc , char ***argv ) {
     printf( "dx,dz: %lf %lf\n",dx,dz);
     printf( "dt: %lf\n",dt);
   }
-  //Want to make sure this info is displayed before further output
-  ierr = MPI_Barrier(MPI_COMM_WORLD);
 
   //////////////////////////////////////////////////////////////////////////
   // Initialize the cell-averaged fluid state via Gauss-Legendre quadrature
   //////////////////////////////////////////////////////////////////////////
-#pragma omp parallel for private(i,ll,kk,ii,inds,x,z,r,u,w,t,hr,ht)
   for (k=0; k<nz+2*hs; k++) {
     for (i=0; i<nx+2*hs; i++) {
       //Initialize the state to zero
@@ -543,7 +515,6 @@ void init( int *argc , char ***argv ) {
     }
   }
   //Compute the hydrostatic background state over vertical cell averages
-#pragma omp parallel for private(kk,z,r,u,w,t,hr,ht)
   for (k=0; k<nz+2*hs; k++) {
     hy_dens_cell      [k] = 0.;
     hy_dens_theta_cell[k] = 0.;
@@ -561,7 +532,6 @@ void init( int *argc , char ***argv ) {
     }
   }
   //Compute the hydrostatic background state at vertical cell interfaces
-#pragma omp parallel for private(z,r,u,w,t,hr,ht)
   for (k=0; k<nz+1; k++) {
     z = (k_beg + k)*dz;
     if (data_spec_int == DATA_SPEC_COLLISION      ) { collision      (0.,z,r,u,w,t,hr,ht); }
@@ -708,115 +678,6 @@ double sample_ellipse_cosine( double x , double z , double amp , double x0 , dou
   }
 }
 
-
-//Output the fluid state (state) to a NetCDF file at a given elapsed model time (etime)
-//The file I/O uses parallel-netcdf, the only external library required for this mini-app.
-//If it's too cumbersome, you can comment the I/O out, but you'll miss out on some potentially cool graphics
-// void output( double *state , double etime ) {
-//   int ncid, t_dimid, x_dimid, z_dimid, dens_varid, uwnd_varid, wwnd_varid, theta_varid, t_varid, dimids[3];
-//   int i, k, ind_r, ind_u, ind_w, ind_t;
-//   MPI_Offset st1[1], ct1[1], st3[3], ct3[3];
-//   //Temporary arrays to hold density, u-wind, w-wind, and potential temperature (theta)
-//   double *dens, *uwnd, *wwnd, *theta;
-//   double *etimearr;
-//   //Inform the user
-//   if (masterproc) { printf("*** OUTPUT ***\n"); }
-//   //Allocate some (big) temp arrays
-//   dens     = (double *) malloc(nx*nz*sizeof(double));
-//   uwnd     = (double *) malloc(nx*nz*sizeof(double));
-//   wwnd     = (double *) malloc(nx*nz*sizeof(double));
-//   theta    = (double *) malloc(nx*nz*sizeof(double));
-//   etimearr = (double *) malloc(1    *sizeof(double));
-
-//   //If the elapsed time is zero, create the file. Otherwise, open the file
-//   if (etime == 0) {
-//     //Create the file
-//     ncwrap( ncmpi_create( MPI_COMM_WORLD , "output.nc" , NC_CLOBBER , MPI_INFO_NULL , &ncid ) , __LINE__ );
-//     //Create the dimensions
-//     ncwrap( ncmpi_def_dim( ncid , "t" , (MPI_Offset) NC_UNLIMITED , &t_dimid ) , __LINE__ );
-//     ncwrap( ncmpi_def_dim( ncid , "x" , (MPI_Offset) nx_glob      , &x_dimid ) , __LINE__ );
-//     ncwrap( ncmpi_def_dim( ncid , "z" , (MPI_Offset) nz_glob      , &z_dimid ) , __LINE__ );
-//     //Create the variables
-//     dimids[0] = t_dimid;
-//     ncwrap( ncmpi_def_var( ncid , "t"     , NC_DOUBLE , 1 , dimids ,     &t_varid ) , __LINE__ );
-//     dimids[0] = t_dimid; dimids[1] = z_dimid; dimids[2] = x_dimid;
-//     ncwrap( ncmpi_def_var( ncid , "dens"  , NC_DOUBLE , 3 , dimids ,  &dens_varid ) , __LINE__ );
-//     ncwrap( ncmpi_def_var( ncid , "uwnd"  , NC_DOUBLE , 3 , dimids ,  &uwnd_varid ) , __LINE__ );
-//     ncwrap( ncmpi_def_var( ncid , "wwnd"  , NC_DOUBLE , 3 , dimids ,  &wwnd_varid ) , __LINE__ );
-//     ncwrap( ncmpi_def_var( ncid , "theta" , NC_DOUBLE , 3 , dimids , &theta_varid ) , __LINE__ );
-//     //End "define" mode
-//     ncwrap( ncmpi_enddef( ncid ) , __LINE__ );
-//   } else {
-//     //Open the file
-//     ncwrap( ncmpi_open( MPI_COMM_WORLD , "output.nc" , NC_WRITE , MPI_INFO_NULL , &ncid ) , __LINE__ );
-//     //Get the variable IDs
-//     ncwrap( ncmpi_inq_varid( ncid , "dens"  ,  &dens_varid ) , __LINE__ );
-//     ncwrap( ncmpi_inq_varid( ncid , "uwnd"  ,  &uwnd_varid ) , __LINE__ );
-//     ncwrap( ncmpi_inq_varid( ncid , "wwnd"  ,  &wwnd_varid ) , __LINE__ );
-//     ncwrap( ncmpi_inq_varid( ncid , "theta" , &theta_varid ) , __LINE__ );
-//     ncwrap( ncmpi_inq_varid( ncid , "t"     ,     &t_varid ) , __LINE__ );
-//   }
-
-//   //Store perturbed values in the temp arrays for output
-// #pragma omp parallel for private(i,ind_r,ind_u,ind_w,ind_t)
-//   for (k=0; k<nz; k++) {
-//     for (i=0; i<nx; i++) {
-//       ind_r = ID_DENS*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + i+hs;
-//       ind_u = ID_UMOM*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + i+hs;
-//       ind_w = ID_WMOM*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + i+hs;
-//       ind_t = ID_RHOT*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + i+hs;
-//       dens [k*nx+i] = state[ind_r];
-//       uwnd [k*nx+i] = state[ind_u] / ( hy_dens_cell[k+hs] + state[ind_r] );
-//       wwnd [k*nx+i] = state[ind_w] / ( hy_dens_cell[k+hs] + state[ind_r] );
-//       theta[k*nx+i] = ( state[ind_t] + hy_dens_theta_cell[k+hs] ) / ( hy_dens_cell[k+hs] + state[ind_r] ) - hy_dens_theta_cell[k+hs] / hy_dens_cell[k+hs];
-//     }
-//   }
-
-//   //Write the grid data to file with all the processes writing collectively
-//   st3[0] = num_out; st3[1] = k_beg; st3[2] = i_beg;
-//   ct3[0] = 1      ; ct3[1] = nz   ; ct3[2] = nx   ;
-//   ncwrap( ncmpi_put_vara_double_all( ncid ,  dens_varid , st3 , ct3 , dens  ) , __LINE__ );
-//   ncwrap( ncmpi_put_vara_double_all( ncid ,  uwnd_varid , st3 , ct3 , uwnd  ) , __LINE__ );
-//   ncwrap( ncmpi_put_vara_double_all( ncid ,  wwnd_varid , st3 , ct3 , wwnd  ) , __LINE__ );
-//   ncwrap( ncmpi_put_vara_double_all( ncid , theta_varid , st3 , ct3 , theta ) , __LINE__ );
-
-//   //Only the master process needs to write the elapsed time
-//   //Begin "independent" write mode
-//   ncwrap( ncmpi_begin_indep_data(ncid) , __LINE__ );
-//   //write elapsed time to file
-//   if (masterproc) {
-//     st1[0] = num_out;
-//     ct1[0] = 1;
-//     etimearr[0] = etime; ncwrap( ncmpi_put_vara_double( ncid , t_varid , st1 , ct1 , etimearr ) , __LINE__ );
-//   }
-//   //End "independent" write mode
-//   ncwrap( ncmpi_end_indep_data(ncid) , __LINE__ );
-
-//   //Close the file
-//   ncwrap( ncmpi_close(ncid) , __LINE__ );
-
-//   //Increment the number of outputs
-//   num_out = num_out + 1;
-
-//   //Deallocate the temp arrays
-//   free( dens     );
-//   free( uwnd     );
-//   free( wwnd     );
-//   free( theta    );
-//   free( etimearr );
-// }
-
-
-// //Error reporting routine for the PNetCDF I/O
-// void ncwrap( int ierr , int line ) {
-//   if (ierr != NC_NOERR) {
-//     printf("NetCDF Error at line: %d\n", line);
-//     printf("%s\n",ncmpi_strerror(ierr));
-//     exit(-1);
-//   }
-// }
-
-
 void finalize() {
   int ierr;
   free( state );
@@ -832,5 +693,4 @@ void finalize() {
   free( sendbuf_r );
   free( recvbuf_l );
   free( recvbuf_r );
-  ierr = MPI_Finalize();
 }
