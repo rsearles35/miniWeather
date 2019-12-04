@@ -1,7 +1,7 @@
-diff --git a/c/miniWeather.cpp b/c/miniWeather.cpp
+diff --git a/miniWeather.cpp b/miniWeather.cpp
 index ef9808d..81dd04e 100644
---- a/c/miniWeather.cpp
-+++ b/c/miniWeather.cpp
+--- a/miniWeather.cpp
++++ b/miniWeather.cpp
 @@ -218,7 +218,7 @@ void compute_tendencies_x( double *state , double *flux , double *tend ) {
            stencil[s] = state[inds];
          }

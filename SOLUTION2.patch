@@ -1,7 +1,7 @@
-diff --git a/c/miniWeather.cpp b/c/miniWeather.cpp
+diff --git a/miniWeather.cpp b/miniWeather.cpp
 index ef9808d..2501f33 100644
---- a/c/miniWeather.cpp
-+++ b/c/miniWeather.cpp
+--- a/miniWeather.cpp
++++ b/miniWeather.cpp
 @@ -102,8 +102,8 @@ int main(int argc, char **argv) {
    ///////////////////////////////////////////////////////////////////////////////////////
    //The x-direction length is twice as long as the z-direction length

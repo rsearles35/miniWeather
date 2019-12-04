@@ -1,7 +1,7 @@
-diff --git a/c/miniWeather.cpp b/c/miniWeather.cpp
+diff --git a/miniWeather.cpp b/miniWeather.cpp
 index ef9808d..3ea40d7 100644
---- a/c/miniWeather.cpp
-+++ b/c/miniWeather.cpp
+--- a/miniWeather.cpp
++++ b/miniWeather.cpp
 @@ -335,7 +335,7 @@ void set_halo_values_z( double *state ) {
    const double mnt_width = xlen/8;
    double       x, xloc, mnt_deriv;
