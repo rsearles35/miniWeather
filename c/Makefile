@@ -1,7 +1,7 @@
 ##########################################################
 ## EDIT THESE PARAMETERS
 ##########################################################
-CC := mpic++
+CC := pgc++
 CFLAGS := -O3
 OMPFLAGS := -mp
 ACCFLAGS := -ta=tesla,pinned,cc70,ptxinfo,lineinfo -Minfo=accel
