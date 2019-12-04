@@ -83,17 +83,8 @@ double dmin( double a , double b ) { if (a<b) {return a;} else {return b;} };
 //Declaring the functions defined after "main"
 void   init                 ( int *argc , char ***argv );
 void   finalize             ( );
-void   injection            ( double x , double z , double &r , double &u , double &w , double &t , double &hr , double &ht );
-void   density_current      ( double x , double z , double &r , double &u , double &w , double &t , double &hr , double &ht );
-void   turbulence           ( double x , double z , double &r , double &u , double &w , double &t , double &hr , double &ht );
 void   mountain_waves       ( double x , double z , double &r , double &u , double &w , double &t , double &hr , double &ht );
-void   thermal              ( double x , double z , double &r , double &u , double &w , double &t , double &hr , double &ht );
-void   collision            ( double x , double z , double &r , double &u , double &w , double &t , double &hr , double &ht );
-void   hydro_const_theta    ( double z                   , double &r , double &t );
 void   hydro_const_bvfreq   ( double z , double bv_freq0 , double &r , double &t );
-double sample_ellipse_cosine( double x , double z , double amp , double x0 , double z0 , double xrad , double zrad );
-//void   output               ( double *state , double etime );
-void   ncwrap               ( int ierr , int line );
 void   perform_timestep     ( double *state , double *state_tmp , double *flux , double *tend , double dt );
 void   semi_discrete_step   ( double *state_init , double *state_forcing , double *state_out , double dt , int dir , double *flux , double *tend );
 void   compute_tendencies_x ( double *state , double *flux , double *tend );
@@ -111,10 +102,9 @@ int main(int argc, char **argv) {
   ///////////////////////////////////////////////////////////////////////////////////////
   //The x-direction length is twice as long as the z-direction length
   //So, you'll want to have nx_glob be twice as large as nz_glob
-  nx_glob = 400;      //Number of total cells in the x-dirction
-  nz_glob = 200;      //Number of total cells in the z-dirction
+  nx_glob = 400;      //Number of total cells in the x-direction
+  nz_glob = 200;      //Number of total cells in the z-direction
   sim_time = 10;     //How many seconds to run the simulation
-  output_freq = 10;   //How frequently to output data to file (in seconds)
 
   ///////////////////////////////////////////////////////////////////////////////////////
   // END USER-CONFIGURABLE PARAMETERS
@@ -127,9 +117,6 @@ int main(int argc, char **argv) {
         copy(state[(nz+2*hs)*(nx+2*hs)*NUM_VARS])
 {        
 
-  //Output the initial state
-  //output(state,etime);
-
   ////////////////////////////////////////////////////
   // MAIN TIME STEP LOOP
   ////////////////////////////////////////////////////
@@ -139,16 +126,9 @@ int main(int argc, char **argv) {
     //Perform a single time step
     perform_timestep(state,state_tmp,flux,tend,dt);
     //Inform the user
-    if (masterproc) { printf( "Elapsed Time: %lf / %lf\n", etime , sim_time ); }
-    //Update the elapsed time and output counter
+    printf( "Elapsed Time: %lf / %lf\n", etime , sim_time );
+    //Update the elapsed time
     etime = etime + dt;
-    output_counter = output_counter + dt;
-    //If it's time for output, reset the counter, and do output
-    if (output_counter >= output_freq) {
-      output_counter = output_counter - output_freq;
-//#pragma acc update host(state[(nz+2*hs)*(nx+2*hs)*NUM_VARS])
-//      output(state,etime);
-    }
   }
 }
 
@@ -500,49 +480,6 @@ void init( int *argc , char ***argv ) {
 }
 
 
-//This test case is initially balanced but injects fast, cold air from the left boundary near the model top
-//x and z are input coordinates at which to sample
-//r,u,w,t are output density, u-wind, w-wind, and potential temperature at that location
-//hr and ht are output background hydrostatic density and potential temperature at that location
-void injection( double x , double z , double &r , double &u , double &w , double &t , double &hr , double &ht ) {
-  hydro_const_theta(z,hr,ht);
-  r = 0.;
-  t = 0.;
-  u = 0.;
-  w = 0.;
-}
-
-
-//Initialize a density current (falling cold thermal that propagates along the model bottom)
-//x and z are input coordinates at which to sample
-//r,u,w,t are output density, u-wind, w-wind, and potential temperature at that location
-//hr and ht are output background hydrostatic density and potential temperature at that location
-void density_current( double x , double z , double &r , double &u , double &w , double &t , double &hr , double &ht ) {
-  hydro_const_theta(z,hr,ht);
-  r = 0.;
-  t = 0.;
-  u = 0.;
-  w = 0.;
-  t = t + sample_ellipse_cosine(x,z,-20. ,xlen/2,5000.,4000.,2000.);
-}
-
-
-//x and z are input coordinates at which to sample
-//r,u,w,t are output density, u-wind, w-wind, and potential temperature at that location
-//hr and ht are output background hydrostatic density and potential temperature at that location
-void turbulence( double x , double z , double &r , double &u , double &w , double &t , double &hr , double &ht ) {
-  hydro_const_theta(z,hr,ht);
-  r = 0.;
-  t = 0.;
-  u = 0.;
-  w = 0.;
-  // call random_number(u);
-  // call random_number(w);
-  // u = (u-0.5)*20;
-  // w = (w-0.5)*20;
-}
-
-
 //x and z are input coordinates at which to sample
 //r,u,w,t are output density, u-wind, w-wind, and potential temperature at that location
 //hr and ht are output background hydrostatic density and potential temperature at that location
@@ -552,51 +489,6 @@ void mountain_waves( double x , double z , double &r , double &u , double &w , d
   t = 0.;
   u = 15.;
   w = 0.;
-}
-
-
-//Rising thermal
-//x and z are input coordinates at which to sample
-//r,u,w,t are output density, u-wind, w-wind, and potential temperature at that location
-//hr and ht are output background hydrostatic density and potential temperature at that location
-void thermal( double x , double z , double &r , double &u , double &w , double &t , double &hr , double &ht ) {
-  hydro_const_theta(z,hr,ht);
-  r = 0.;
-  t = 0.;
-  u = 0.;
-  w = 0.;
-  t = t + sample_ellipse_cosine(x,z, 3. ,xlen/2,2000.,2000.,2000.);
-}
-
-
-//Colliding thermals
-//x and z are input coordinates at which to sample
-//r,u,w,t are output density, u-wind, w-wind, and potential temperature at that location
-//hr and ht are output background hydrostatic density and potential temperature at that location
-void collision( double x , double z , double &r , double &u , double &w , double &t , double &hr , double &ht ) {
-  hydro_const_theta(z,hr,ht);
-  r = 0.;
-  t = 0.;
-  u = 0.;
-  w = 0.;
-  t = t + sample_ellipse_cosine(x,z, 20.,xlen/2,2000.,2000.,2000.);
-  t = t + sample_ellipse_cosine(x,z,-20.,xlen/2,8000.,2000.,2000.);
-}
-
-
-//Establish hydrstatic balance using constant potential temperature (thermally neutral atmosphere)
-//z is the input coordinate
-//r and t are the output background hydrostatic density and potential temperature
-void hydro_const_theta( double z , double &r , double &t ) {
-  const double theta0 = 300.;  //Background potential temperature
-  const double exner0 = 1.;    //Surface-level Exner pressure
-  double       p,exner,rt;
-  //Establish hydrostatic balance first using Exner pressure
-  t = theta0;                                  //Potential Temperature at z
-  exner = exner0 - grav * z / (cp * theta0);   //Exner pressure at z
-  p = p0 * pow(exner,(cp/rd));                 //Pressure at z
-  rt = pow((p / C0),(1. / gamm));             //rho*theta at z
-  r = rt / t;                                  //Density at z
 }
 
 
@@ -615,21 +507,6 @@ void hydro_const_bvfreq( double z , double bv_freq0 , double &r , double &t ) {
   r = rt / t;                                                                          //Density at z
 }
 
-
-//Sample from an ellipse of a specified center, radius, and amplitude at a specified location
-//x and z are input coordinates
-//amp,x0,z0,xrad,zrad are input amplitude, center, and radius of the ellipse
-double sample_ellipse_cosine( double x , double z , double amp , double x0 , double z0 , double xrad , double zrad ) {
-  double dist;
-  //Compute distance from bubble center
-  dist = sqrt( ((x-x0)/xrad)*((x-x0)/xrad) + ((z-z0)/zrad)*((z-z0)/zrad) ) * pi / 2.;
-  //If the distance from bubble center is less than the radius, create a cos**2 profile
-  if (dist <= pi / 2.) {
-    return amp * pow(cos(dist),2.);
-  } else {
-    return 0.;
-  }
-}
 
 void finalize() {
   free( state );
