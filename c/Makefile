@@ -9,13 +9,8 @@ ACCFLAGS := -ta=tesla,pinned,cc70,ptxinfo -Minfo=accel
 ## END EDITING SECTION
 ##########################################################
 
-all: serial openacc
-
-serial:
-	${CC} ${INCLUDE} ${CFLAGS} -o miniWeather_serial miniWeather_serial.cpp ${LDFLAGS}
-
-openacc:
-	${CC} ${INCLUDE} ${CFLAGS} ${ACCFLAGS} -o miniWeather_openacc miniWeather_openacc.cpp ${LDFLAGS}
+miniWeather: miniWeather.cpp
+	${CC} ${INCLUDE} ${CFLAGS} ${ACCFLAGS} -o miniWeather miniWeather.cpp ${LDFLAGS}
 
 clean:
-	rm -f *.o *.mod miniWeather_serial miniWeather_openacc
+	rm -f *.o *.mod miniWeather
