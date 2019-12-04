@@ -4,7 +4,7 @@
 CC := mpic++
 CFLAGS := -O3
 OMPFLAGS := -mp
-ACCFLAGS := -ta=tesla,pinned,cc70,ptxinfo -Minfo=accel
+ACCFLAGS := -ta=tesla,pinned,cc70,ptxinfo,lineinfo -Minfo=accel
 ##########################################################
 ## END EDITING SECTION
 ##########################################################
