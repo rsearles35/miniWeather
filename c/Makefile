@@ -1,13 +1,10 @@
-
 ##########################################################
 ## EDIT THESE PARAMETERS
 ##########################################################
-CC := mpiCC
+CC := mpic++
 CFLAGS := -O3
-INCLUDE := -I${PNETCDF_PATH}/include
-LDFLAGS := -L${PNETCDF_PATH}/lib -lpnetcdf -L${LAPACK_PATH}/lib
 OMPFLAGS := -mp
-ACCFLAGS := -ta=tesla,pinned,cc50,cuda9.0,ptxinfo -Minfo=accel
+ACCFLAGS := -ta=tesla,pinned,cc70,ptxinfo -Minfo=accel
 ##########################################################
 ## END EDITING SECTION
 ##########################################################
