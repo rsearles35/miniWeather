@@ -1,0 +1,15 @@
+diff --git a/c/miniWeather.cpp b/c/miniWeather.cpp
+index ef9808d..2501f33 100644
+--- a/c/miniWeather.cpp
++++ b/c/miniWeather.cpp
+@@ -102,8 +102,8 @@ int main(int argc, char **argv) {
+   ///////////////////////////////////////////////////////////////////////////////////////
+   //The x-direction length is twice as long as the z-direction length
+   //So, you'll want to have nx_glob be twice as large as nz_glob
+-  nx_glob = 40;      //Number of total cells in the x-direction
+-  nz_glob = 20;      //Number of total cells in the z-direction
++  nx_glob = 3200;     //Number of total cells in the x-direction
++  nz_glob = 1600;     //Number of total cells in the z-direction
+   sim_time = 10;     //How many seconds to run the simulation
+ 
+   ///////////////////////////////////////////////////////////////////////////////////////

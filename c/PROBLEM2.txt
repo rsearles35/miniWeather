@@ -1,0 +1,21 @@
+# Use Nsight Systems to profile the code at the command line and determine the most expensive kernel
+
+nsys profile --stats=true ./miniWeather
+
+# Use the Nsight Compute CLI to collect a profile of that kernel, and then analyze it in the Nsight Compute UI
+# after scp'ing the generated file (miniWeather2.nsight-cuprof-report) to your local system.
+
+nv-nsight-cu-cli -f -o miniWeather2 -k compute_tendencies_z_267_gpu -c 1 -s 10 ./miniWeather
+
+# TASK 2: what does Nsight Compute tell us is the fundamental problem with this loop? Is it latency-bound, compute-bound,
+# or memory-bound? Is there any way to change which regime it is in by modifying that section of code? If not, what larger
+# issue do we need to address in the code? After making a change to deal with this, collect the profile again and see what
+# change occurs in the GPU Speed of Light section. Is the loop bound by a different limiter now?. I recommend saving the
+# new profile in file as below, and then using the "Add Baseline" button in the Nsight Compute UI before loading the new
+# profile to see the performance difference.
+
+nv-nsight-cu-cli -f -o miniWeather2a -k compute_tendencies_z_267_gpu -c 1 -s 10 ./miniWeather
+
+# If you're stuck, you can see the solution with
+
+git apply SOLUTION2.patch
