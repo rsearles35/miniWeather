@@ -14,7 +14,6 @@
 const double pi        = 3.14159265358979323846264338327;   //Pi
 const double grav      = 9.8;                               //Gravitational acceleration (m / s^2)
 const double cp        = 1004.;                             //Specific heat of dry air at constant pressure
-const double cv        = 717.;                              //Specific heat of dry air at constant volume
 const double rd        = 287.;                              //Dry air constant for equation of state (P=rho*rd*T)
 const double p0        = 1.e5;                              //Standard pressure at the surface in Pascals
 const double C0        = 27.5629410929725921310572974482;   //Constant to translate potential temperature into pressure (P=C0*(rho*theta)**gamma)
@@ -335,8 +334,7 @@ void compute_tendencies_z( double *state , double *flux , double *tend ) {
 
 //If we were using MPI, this is where we would prepare for a halo exchange in the x-direction.
 void set_halo_values_x( double *state ) {
-  int k, ll, ind_r, ind_u, ind_t, i;
-  double z;
+  int k, ll;
 
 #pragma acc parallel loop collapse(2) default(present)
   for (ll=0; ll<NUM_VARS; ll++) {
@@ -386,7 +384,7 @@ void set_halo_values_z( double *state ) {
 }
 
 void init( int *argc , char ***argv ) {
-  int    i, k, ii, kk, ll, ierr, inds, i_end;
+  int    i, k, ii, kk, ll, inds, i_end;
   double x, z, r, u, w, t, hr, ht, nper;
 
   //Set the cell grid size
@@ -634,7 +632,6 @@ double sample_ellipse_cosine( double x , double z , double amp , double x0 , dou
 }
 
 void finalize() {
-  int ierr;
   free( state );
   free( state_tmp );
   free( flux );
