@@ -36,12 +36,6 @@ const int ID_WMOM  = 2;           //index for momentum in the z-direction ("rho 
 const int ID_RHOT  = 3;           //index for density * potential temperature ("rho * theta")
 const int DIR_X = 1;              //Integer constant to express that this operation is in the x-direction
 const int DIR_Z = 2;              //Integer constant to express that this operation is in the z-direction
-const int DATA_SPEC_COLLISION       = 1;
-const int DATA_SPEC_THERMAL         = 2;
-const int DATA_SPEC_MOUNTAIN        = 3;
-const int DATA_SPEC_TURBULENCE      = 4;
-const int DATA_SPEC_DENSITY_CURRENT = 5;
-const int DATA_SPEC_INJECTION       = 6;
 
 const int nqpoints = 3;
 double qpoints [] = { 0.112701665379258311482073460022E0 , 0.500000000000000000000000000000E0 , 0.887298334620741688517926539980E0 };
@@ -60,7 +54,6 @@ int    i_beg, k_beg;          //beginning index in the x- and z-directions for t
 int    nranks, myrank;        //Number of MPI ranks and my rank id
 int    left_rank, right_rank; //MPI Rank IDs that exist to my left and right in the global domain
 int    masterproc;            //Am I the master process (rank == 0)?
-double data_spec_int;         //Which data initialization to use
 double *hy_dens_cell;         //hydrostatic density (vert cell avgs).   Dimensions: (1-hs:nz+hs)
 double *hy_dens_theta_cell;   //hydrostatic rho*t (vert cell avgs).     Dimensions: (1-hs:nz+hs)
 double *hy_dens_int;          //hydrostatic density (vert cell interf). Dimensions: (1:nz+1)
@@ -123,8 +116,7 @@ int main(int argc, char **argv) {
   nz_glob = 200;      //Number of total cells in the z-dirction
   sim_time = 10;     //How many seconds to run the simulation
   output_freq = 10;   //How frequently to output data to file (in seconds)
-  //Model setup: DATA_SPEC_THERMAL or DATA_SPEC_COLLISION
-  data_spec_int = DATA_SPEC_INJECTION;
+
   ///////////////////////////////////////////////////////////////////////////////////////
   // END USER-CONFIGURABLE PARAMETERS
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -355,24 +347,6 @@ void set_halo_values_x( double *state ) {
       state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + nx+hs+1] = state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + hs+1   ];
     }
   }
-
-  if (data_spec_int == DATA_SPEC_INJECTION) {
-    if (myrank == 0) {
-#pragma acc parallel loop collapse(2) private(z, ind_r, ind_u, ind_t) default(present)
-      for (k=0; k<nz; k++) {
-        for (i=0; i<hs; i++) {
-          z = (k_beg + k+0.5)*dz;
-          if (abs(z-3*zlen/4) <= zlen/16) {
-            ind_r = ID_DENS*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + i;
-            ind_u = ID_UMOM*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + i;
-            ind_t = ID_RHOT*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + i;
-            state[ind_u] = (state[ind_r]+hy_dens_cell[k+hs]) * 50.;
-            state[ind_t] = (state[ind_r]+hy_dens_cell[k+hs]) * 298. - hy_dens_theta_cell[k+hs];
-          }
-        }
-      }
-    }
-  }
 }
 
 
@@ -392,16 +366,14 @@ void set_halo_values_z( double *state ) {
         state[ll*(nz+2*hs)*(nx+2*hs) + (nz+hs  )*(nx+2*hs) + i] = 0.;
         state[ll*(nz+2*hs)*(nx+2*hs) + (nz+hs+1)*(nx+2*hs) + i] = 0.;
         //Impose the vertical momentum effects of an artificial cos^2 mountain at the lower boundary
-        if (data_spec_int == DATA_SPEC_MOUNTAIN) {
-          x = (i_beg+i-hs+0.5)*dx;
-          if ( fabs(x-xlen/4) < mnt_width ) {
-            xloc = (x-(xlen/4)) / mnt_width;
-            //Compute the derivative of the fake mountain
-            mnt_deriv = -pi*cos(pi*xloc/2)*sin(pi*xloc/2)*10/dx;
-            //w = (dz/dx)*u
-            state[ID_WMOM*(nz+2*hs)*(nx+2*hs) + (0)*(nx+2*hs) + i] = mnt_deriv*state[ID_UMOM*(nz+2*hs)*(nx+2*hs) + hs*(nx+2*hs) + i];
-            state[ID_WMOM*(nz+2*hs)*(nx+2*hs) + (1)*(nx+2*hs) + i] = mnt_deriv*state[ID_UMOM*(nz+2*hs)*(nx+2*hs) + hs*(nx+2*hs) + i];
-          }
+        x = (i_beg+i-hs+0.5)*dx;
+        if ( fabs(x-xlen/4) < mnt_width ) {
+          xloc = (x-(xlen/4)) / mnt_width;
+          //Compute the derivative of the fake mountain
+          mnt_deriv = -pi*cos(pi*xloc/2)*sin(pi*xloc/2)*10/dx;
+          //w = (dz/dx)*u
+          state[ID_WMOM*(nz+2*hs)*(nx+2*hs) + (0)*(nx+2*hs) + i] = mnt_deriv*state[ID_UMOM*(nz+2*hs)*(nx+2*hs) + hs*(nx+2*hs) + i];
+          state[ID_WMOM*(nz+2*hs)*(nx+2*hs) + (1)*(nx+2*hs) + i] = mnt_deriv*state[ID_UMOM*(nz+2*hs)*(nx+2*hs) + hs*(nx+2*hs) + i];
         }
       } else {
         state[ll*(nz+2*hs)*(nx+2*hs) + (0      )*(nx+2*hs) + i] = state[ll*(nz+2*hs)*(nx+2*hs) + (hs     )*(nx+2*hs) + i];
@@ -489,13 +461,7 @@ void init( int *argc , char ***argv ) {
           x = (i_beg + i-hs+0.5)*dx + (qpoints[ii]-0.5)*dx;
           z = (k_beg + k-hs+0.5)*dz + (qpoints[kk]-0.5)*dz;
 
-          //Set the fluid state based on the user's specification
-          if (data_spec_int == DATA_SPEC_COLLISION      ) { collision      (x,z,r,u,w,t,hr,ht); }
-          if (data_spec_int == DATA_SPEC_THERMAL        ) { thermal        (x,z,r,u,w,t,hr,ht); }
-          if (data_spec_int == DATA_SPEC_MOUNTAIN       ) { mountain_waves (x,z,r,u,w,t,hr,ht); }
-          if (data_spec_int == DATA_SPEC_TURBULENCE     ) { turbulence     (x,z,r,u,w,t,hr,ht); }
-          if (data_spec_int == DATA_SPEC_DENSITY_CURRENT) { density_current(x,z,r,u,w,t,hr,ht); }
-          if (data_spec_int == DATA_SPEC_INJECTION      ) { injection      (x,z,r,u,w,t,hr,ht); }
+          mountain_waves (x,z,r,u,w,t,hr,ht);
 
           //Store into the fluid state array
           inds = ID_DENS*(nz+2*hs)*(nx+2*hs) + k*(nx+2*hs) + i;
@@ -520,13 +486,7 @@ void init( int *argc , char ***argv ) {
     hy_dens_theta_cell[k] = 0.;
     for (kk=0; kk<nqpoints; kk++) {
       z = (k_beg + k-hs+0.5)*dz;
-      //Set the fluid state based on the user's specification
-      if (data_spec_int == DATA_SPEC_COLLISION      ) { collision      (0.,z,r,u,w,t,hr,ht); }
-      if (data_spec_int == DATA_SPEC_THERMAL        ) { thermal        (0.,z,r,u,w,t,hr,ht); }
-      if (data_spec_int == DATA_SPEC_MOUNTAIN       ) { mountain_waves (0.,z,r,u,w,t,hr,ht); }
-      if (data_spec_int == DATA_SPEC_TURBULENCE     ) { turbulence     (0.,z,r,u,w,t,hr,ht); }
-      if (data_spec_int == DATA_SPEC_DENSITY_CURRENT) { density_current(0.,z,r,u,w,t,hr,ht); }
-      if (data_spec_int == DATA_SPEC_INJECTION      ) { injection      (0.,z,r,u,w,t,hr,ht); }
+      mountain_waves (0.,z,r,u,w,t,hr,ht);
       hy_dens_cell      [k] = hy_dens_cell      [k] + hr    * qweights[kk];
       hy_dens_theta_cell[k] = hy_dens_theta_cell[k] + hr*ht * qweights[kk];
     }
@@ -534,12 +494,7 @@ void init( int *argc , char ***argv ) {
   //Compute the hydrostatic background state at vertical cell interfaces
   for (k=0; k<nz+1; k++) {
     z = (k_beg + k)*dz;
-    if (data_spec_int == DATA_SPEC_COLLISION      ) { collision      (0.,z,r,u,w,t,hr,ht); }
-    if (data_spec_int == DATA_SPEC_THERMAL        ) { thermal        (0.,z,r,u,w,t,hr,ht); }
-    if (data_spec_int == DATA_SPEC_MOUNTAIN       ) { mountain_waves (0.,z,r,u,w,t,hr,ht); }
-    if (data_spec_int == DATA_SPEC_TURBULENCE     ) { turbulence     (0.,z,r,u,w,t,hr,ht); }
-    if (data_spec_int == DATA_SPEC_DENSITY_CURRENT) { density_current(0.,z,r,u,w,t,hr,ht); }
-    if (data_spec_int == DATA_SPEC_INJECTION      ) { injection      (0.,z,r,u,w,t,hr,ht); }
+    mountain_waves (0.,z,r,u,w,t,hr,ht);
     hy_dens_int      [k] = hr;
     hy_dens_theta_int[k] = hr*ht;
     hy_pressure_int  [k] = C0*pow((hr*ht),gamm);
