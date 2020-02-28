@@ -1,16 +1,13 @@
-# Use Nsight Systems to profile the code at the command line and determine the most expensive kernel
+# Now that we're running for a long enough time that most of the action is related
+# to the GPU, let's use Nsight Systems again to profile the code at the command line
+# and collect a timeline.
 
-nsys profile --stats=true ./miniWeather
+nsys profile -f true --stats=true -o miniWeather2 ./miniWeather
 
-# Use the Nsight Compute CLI to collect a profile of that kernel, and then analyze it in the Nsight Compute UI
-# after scp'ing the generated file (miniWeather1.nsight-cuprof-report) to your local system.
-
-nv-nsight-cu-cli -f -o miniWeather2 -k set_halo_values_z_339_gpu -c 1 -s 10 ./miniWeather
-
-# TASK 2: what does Nsight Compute tell us is the fundamental problem with this loop? Make a simple change
-# to the OpenACC parallel loop directive to avoid this issue and improve the performance of the loop. (Hint:
-# compare to set_halo_values_x). Using the Nsight Systems CLI, verify after making the change that this kernel
-# is no longer the costliest.
+# TASK 2: use the command line or UI to see that we're spending a lot of time
+# in memory copies. We'd like to be able to spend the vast majority of the time
+# in compute. Analyze the application driver and determine a simple change you
+# can make to remove this bottleneck.
 
 # If you're stuck, you can see the solution with
 

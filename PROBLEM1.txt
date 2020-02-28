@@ -1,0 +1,19 @@
+# Build the code (a simple "make" at the command line works, and requires the PGI compiler to be loaded)
+
+make
+
+# Use Nsight Systems to profile the code at the command line and collect a timeline
+
+nsys profile --stats=true -o miniWeather1 ./miniWeather
+
+# TASK 1: where does Nsight Systems tell us we are spending all of our time?
+# To answer this question, you can either look at the stdout from the above
+# profiling session, or you can load the generated file, miniWeather1.qdrep,
+# into the Nsight Systems UI. Once you've determined what the most important
+# bottleneck is, modify the application driver to make this problem more
+# appropriate for the GPU (hint: is there a way we can amortize out the cost
+# of the most expensive step by making the application run longer?).
+
+# If you're stuck, you can see the solution with
+
+git apply SOLUTION1.patch

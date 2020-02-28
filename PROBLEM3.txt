@@ -1,20 +1,29 @@
-# Use Nsight Systems to profile the code at the command line and determine the most expensive kernel
+# Use Nsight Systems to profile the code again.
 
-nsys profile --stats=true ./miniWeather
+nsys profile -f true --stats=true -o miniWeather3 ./miniWeather
 
-# Use the Nsight Compute CLI to collect a profile of that kernel, and then analyze it in the Nsight Compute UI
-# after scp'ing the generated file (miniWeather2.nsight-cuprof-report) to your local system.
+# We see that initialization and memory allocation is now
+# pretty expensive again in relative terms. We could just
+# run longer again, but that's not the only knob we can tune
+# here. The reason why we have this problem again is that the
+# kernels are so fast that the GPU compute part of the problem
+# is very small in relative terms. (Use Nsight Systems to determine
+# how much time is spent in each portion, as well as the average
+# wall time of an OpenACC loop). In particular, you may be able
+# to spot in the UI that the time it takes to *launch* the work
+# is comparable to the time it takes to *run* the work. This is
+# a situation that is suboptimal on GPUs.
 
-nv-nsight-cu-cli -f -o miniWeather3 -k compute_tendencies_z_267_gpu -c 1 -s 10 ./miniWeather
-
-# TASK 3: what does Nsight Compute tell us is the fundamental problem with this loop? Is it latency-bound, compute-bound,
-# or memory-bound? Is there any way to change which regime it is in by modifying that section of code? If not, what larger
-# issue do we need to address in the code? After making a change to deal with this, collect the profile again and see what
-# change occurs in the GPU Speed of Light section. Is the loop bound by a different limiter now?. I recommend saving the
-# new profile in file as below, and then using the "Add Baseline" button in the Nsight Compute UI before loading the new
-# profile to see the performance difference.
-
-nv-nsight-cu-cli -f -o miniWeather3a -k compute_tendencies_z_267_gpu -c 1 -s 10 ./miniWeather
+# TASK 3: Work that runs this quickly (only a few microseconds)
+# often does not have enough parallelism to saturate the GPU's
+# compute capacity. Find the nx_glob and ny_glob variables in
+# the code and use them to increase the amount of work done on
+# the GPU. (Hint: this should make the run take longer, so you
+# will want to tune sim_time again to make the run complete in
+# a reasonable amount of time.) Use Nsight Systems to verify
+# that you've made them large enough that you spend most of
+# your time in compute. If that is not the case, make the problem
+# bigger and try again.
 
 # If you're stuck, you can see the solution with
 

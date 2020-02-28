@@ -1,13 +1,38 @@
 diff --git a/miniWeather.cpp b/miniWeather.cpp
-index ef9808d..3ea40d7 100644
+index 437973c..d09577c 100644
 --- a/miniWeather.cpp
 +++ b/miniWeather.cpp
-@@ -335,7 +335,7 @@ void set_halo_values_z( double *state ) {
-   const double mnt_width = xlen/8;
-   double       x, xloc, mnt_deriv;
+@@ -121,24 +121,21 @@ int main(int argc, char **argv) {
+                  create(sendbuf_l[hs*nz*NUM_VARS]) \
+                  create(sendbuf_r[hs*nz*NUM_VARS]) \
+                  create(recvbuf_l[hs*nz*NUM_VARS]) \
+-                 create(recvbuf_r[hs*nz*NUM_VARS])
+-  {
+-      while (etime < sim_time) {
+-          //If the time step leads to exceeding the simulation time, shorten it for the last step
+-          if (etime + dt > sim_time) { dt = sim_time - etime; }
+-
+-          // Copy in the data we need for this step
+-#pragma acc data copy(state_tmp[(nz+2*hs)*(nx+2*hs)*NUM_VARS]) \
++                 create(recvbuf_r[hs*nz*NUM_VARS]) \
++                 copy(state_tmp[(nz+2*hs)*(nx+2*hs)*NUM_VARS]) \
+                  copy(hy_dens_cell[nz+2*hs]) \
+                  copy(hy_dens_theta_cell[nz+2*hs]) \
+                  copy(hy_dens_int[nz+1]) \
+                  copy(hy_dens_theta_int[nz+1]) \
+                  copy(hy_pressure_int[nz+1]) \
+                  copy(state[(nz+2*hs)*(nx+2*hs)*NUM_VARS])
+-          {
+-              //Perform a single time step
+-              perform_timestep(state,state_tmp,flux,tend,dt);
+-          }
++  {
++      while (etime < sim_time) {
++          //If the time step leads to exceeding the simulation time, shorten it for the last step
++          if (etime + dt > sim_time) { dt = sim_time - etime; }
++
++          //Perform a single time step
++          perform_timestep(state,state_tmp,flux,tend,dt);
  
--#pragma acc parallel loop private(x, xloc, mnt_deriv) default(present)
-+#pragma acc parallel loop collapse(2) private(x, xloc, mnt_deriv) default(present)
-   for (ll=0; ll<NUM_VARS; ll++) {
-     for (i=0; i<nx+2*hs; i++) {
-       if (ll == ID_WMOM) {
+           //Inform the user
+           printf( "Elapsed Time: %lf / %lf\n", etime , sim_time );

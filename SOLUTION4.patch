@@ -1,22 +1,13 @@
 diff --git a/miniWeather.cpp b/miniWeather.cpp
-index ef9808d..81dd04e 100644
+index ef9808d..3ea40d7 100644
 --- a/miniWeather.cpp
 +++ b/miniWeather.cpp
-@@ -218,7 +218,7 @@ void compute_tendencies_x( double *state , double *flux , double *tend ) {
-           stencil[s] = state[inds];
-         }
-         //Fourth-order-accurate interpolation of the state
--        vals[ll] = -stencil[0]/12 + 7*stencil[1]/12 + 7*stencil[2]/12 - stencil[3]/12;
-+        vals[ll] = -(stencil[0] + 7*stencil[1] + 7*stencil[2] - stencil[3])/12;
-         //First-order-accurate interpolation of the third spatial derivative of the state (for artificial viscosity)
-         d3_vals[ll] = -stencil[0] + 3*stencil[1] - 3*stencil[2] + stencil[3];
-       }
-@@ -273,7 +273,7 @@ void compute_tendencies_z( double *state , double *flux , double *tend ) {
-           stencil[s] = state[inds];
-         }
-         //Fourth-order-accurate interpolation of the state
--        vals[ll] = -stencil[0]/12 + 7*stencil[1]/12 + 7*stencil[2]/12 - stencil[3]/12;
-+        vals[ll] = -(stencil[0] + 7*stencil[1] + 7*stencil[2] - stencil[3])/12;
-         //First-order-accurate interpolation of the third spatial derivative of the state
-         d3_vals[ll] = -stencil[0] + 3*stencil[1] - 3*stencil[2] + stencil[3];
-       }
+@@ -335,7 +335,7 @@ void set_halo_values_z( double *state ) {
+   const double mnt_width = xlen/8;
+   double       x, xloc, mnt_deriv;
+ 
+-#pragma acc parallel loop private(x, xloc, mnt_deriv) default(present)
++#pragma acc parallel loop collapse(2) private(x, xloc, mnt_deriv) default(present)
+   for (ll=0; ll<NUM_VARS; ll++) {
+     for (i=0; i<nx+2*hs; i++) {
+       if (ll == ID_WMOM) {
