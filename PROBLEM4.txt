@@ -4,7 +4,7 @@
 # Compute UI after scp'ing the generated file
 # (miniWeather4.nsight-cuprof-report) to your local system.
 
-nv-nsight-cu-cli -f -o miniWeather4 -k set_halo_values_z_339_gpu -c 1 -s 10 ./miniWeather
+nv-nsight-cu-cli -f -o miniWeather4 -k set_halo_values_z -c 1 -s 10 ./miniWeather
 
 # TASK 4: what does Nsight Compute tell us is the fundamental
 # problem with this loop? Make a simple change to the OpenACC

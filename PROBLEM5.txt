@@ -7,7 +7,7 @@ nsys profile -f true --stats=true -o miniWeather5 ./miniWeather
 # and then analyze it in the Nsight Compute UI after scp'ing the
 # generated file (miniWeather5.nsight-cuprof-report) to your local system.
 
-nv-nsight-cu-cli -f -o miniWeather5 -k semi_discrete_step_189_gpu -c 1 -s 10 ./miniWeather
+nv-nsight-cu-cli -f -o miniWeather5 -k semi_discrete_step -c 1 -s 10 ./miniWeather
 
 # Does Nsight Compute tell us that we are in good shape with
 # this kernel? (What is it bound by)? If so, continue down the
