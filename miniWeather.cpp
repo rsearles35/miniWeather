@@ -110,27 +110,44 @@ int main(int argc, char **argv) {
   // END USER-CONFIGURABLE PARAMETERS
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  init( &argc , &argv );
-
-#pragma acc data copyin(state_tmp[(nz+2*hs)*(nx+2*hs)*NUM_VARS],hy_dens_cell[nz+2*hs],hy_dens_theta_cell[nz+2*hs],hy_dens_int[nz+1],hy_dens_theta_int[nz+1],hy_pressure_int[nz+1]) \
-        create(flux[(nz+1)*(nx+1)*NUM_VARS],tend[nz*nx*NUM_VARS],sendbuf_l[hs*nz*NUM_VARS],sendbuf_r[hs*nz*NUM_VARS],recvbuf_l[hs*nz*NUM_VARS],recvbuf_r[hs*nz*NUM_VARS]) \
-        copy(state[(nz+2*hs)*(nx+2*hs)*NUM_VARS])
-{        
+  init(&argc, &argv);
 
   ////////////////////////////////////////////////////
   // MAIN TIME STEP LOOP
   ////////////////////////////////////////////////////
-  while (etime < sim_time) {
-    //If the time step leads to exceeding the simulation time, shorten it for the last step
-    if (etime + dt > sim_time) { dt = sim_time - etime; }
-    //Perform a single time step
-    perform_timestep(state,state_tmp,flux,tend,dt);
-    //Inform the user
-    printf( "Elapsed Time: %lf / %lf\n", etime , sim_time );
-    //Update the elapsed time
-    etime = etime + dt;
+
+#pragma acc data create(flux[(nz+1)*(nx+1)*NUM_VARS]) \
+                 create(tend[nz*nx*NUM_VARS]) \
+                 create(sendbuf_l[hs*nz*NUM_VARS]) \
+                 create(sendbuf_r[hs*nz*NUM_VARS]) \
+                 create(recvbuf_l[hs*nz*NUM_VARS]) \
+                 create(recvbuf_r[hs*nz*NUM_VARS])
+  {
+      while (etime < sim_time) {
+          //If the time step leads to exceeding the simulation time, shorten it for the last step
+          if (etime + dt > sim_time) { dt = sim_time - etime; }
+
+          // Copy in the data we need for this step
+#pragma acc data copy(state_tmp[(nz+2*hs)*(nx+2*hs)*NUM_VARS]) \
+                 copy(hy_dens_cell[nz+2*hs]) \
+                 copy(hy_dens_theta_cell[nz+2*hs]) \
+                 copy(hy_dens_int[nz+1]) \
+                 copy(hy_dens_theta_int[nz+1]) \
+                 copy(hy_pressure_int[nz+1]) \
+                 copy(state[(nz+2*hs)*(nx+2*hs)*NUM_VARS])
+          {
+              //Perform a single time step
+              perform_timestep(state,state_tmp,flux,tend,dt);
+          }
+
+          //Inform the user
+          printf( "Elapsed Time: %lf / %lf\n", etime , sim_time );
+
+          //Update the elapsed time
+          etime = etime + dt;
+      }
+
   }
-}
 
   finalize();
 }

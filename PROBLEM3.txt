@@ -3,18 +3,18 @@
 nsys profile --stats=true ./miniWeather
 
 # Use the Nsight Compute CLI to collect a profile of that kernel, and then analyze it in the Nsight Compute UI
-# after scp'ing the generated file (miniWeather3.nsight-cuprof-report) to your local system.
+# after scp'ing the generated file (miniWeather2.nsight-cuprof-report) to your local system.
 
-nv-nsight-cu-cli -f -o miniWeather3 -k semi_discrete_step_189_gpu -c 1 -s 10 ./miniWeather
+nv-nsight-cu-cli -f -o miniWeather3 -k compute_tendencies_z_267_gpu -c 1 -s 10 ./miniWeather
 
-# Does Nsight Compute tell us that we are in good shape with this kernel? (What is it bound by)? If so,
-# continue down the list of most expensive kernels until you find one that needs work according to the
-# GPU Speed of Light section. Analyze that kernel in Nsight Compute? Is it latency-bound, or compute-bound
-# and/or memory-bound? If it is latency-bound, use the bottleneck detection systems to obtain some information
-# about what is the relevant limiter. Then use the "Source" page instead of the "Details" page to find where
-# the cycles are being spent in this kernel. What simple change can we make to the most expensive line of code
-# to improve the performance? Apply that change and see if the code gets faster. Also determine if we can
-# make that change anywhere else, and if so then do it.
+# TASK 3: what does Nsight Compute tell us is the fundamental problem with this loop? Is it latency-bound, compute-bound,
+# or memory-bound? Is there any way to change which regime it is in by modifying that section of code? If not, what larger
+# issue do we need to address in the code? After making a change to deal with this, collect the profile again and see what
+# change occurs in the GPU Speed of Light section. Is the loop bound by a different limiter now?. I recommend saving the
+# new profile in file as below, and then using the "Add Baseline" button in the Nsight Compute UI before loading the new
+# profile to see the performance difference.
+
+nv-nsight-cu-cli -f -o miniWeather3a -k compute_tendencies_z_267_gpu -c 1 -s 10 ./miniWeather
 
 # If you're stuck, you can see the solution with
 

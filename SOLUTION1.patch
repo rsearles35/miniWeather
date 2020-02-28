@@ -1,13 +1,13 @@
 diff --git a/miniWeather.cpp b/miniWeather.cpp
-index ef9808d..3ea40d7 100644
+index 437973c..9c9eb4c 100644
 --- a/miniWeather.cpp
 +++ b/miniWeather.cpp
-@@ -335,7 +335,7 @@ void set_halo_values_z( double *state ) {
-   const double mnt_width = xlen/8;
-   double       x, xloc, mnt_deriv;
+@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
+   //So, you'll want to have nx_glob be twice as large as nz_glob
+   nx_glob = 40;      //Number of total cells in the x-direction
+   nz_glob = 20;      //Number of total cells in the z-direction
+-  sim_time = 10;     //How many seconds to run the simulation
++  sim_time = 10000;     //How many seconds to run the simulation
  
--#pragma acc parallel loop private(x, xloc, mnt_deriv) default(present)
-+#pragma acc parallel loop collapse(2) private(x, xloc, mnt_deriv) default(present)
-   for (ll=0; ll<NUM_VARS; ll++) {
-     for (i=0; i<nx+2*hs; i++) {
-       if (ll == ID_WMOM) {
+   ///////////////////////////////////////////////////////////////////////////////////////
+   // END USER-CONFIGURABLE PARAMETERS
