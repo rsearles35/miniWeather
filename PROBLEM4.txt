@@ -1,17 +1,23 @@
-# Let's start using Nsight Compute to analyze the kernels now that
-# we think there's enough work exposed on the GPU. Use the CLI to
-# collect a profile of that kernel, and then analyze it in the Nsight
-# Compute UI after scp'ing the generated file
-# (miniWeather4.nsight-cuprof-report) to your local system.
+# Use Nsight Systems to profile the code at the command line and
+# determine the most expensive kernel.
 
-nv-nsight-cu-cli -f -o miniWeather4 -k set_halo_values_z -c 1 -s 10 ./miniWeather
+nsys profile -f true --stats=true -o miniWeather4 ./miniWeather
 
-# TASK 4: what does Nsight Compute tell us is the fundamental
-# problem with this loop? Make a simple change to the OpenACC
-# parallel loop directive to avoid this issue and improve the
-# performance of the loop. (Hint: compare to set_halo_values_x).
-# Using the Nsight Systems CLI, verify after making the change
-# that this kernel is no longer the most expensive.
+# Use the Nsight Compute CLI to collect a profile of that kernel,
+# and then analyze it in the Nsight Compute UI after scp'ing the
+# generated file (miniWeather4.ncu-rep) to your local system.
+
+ncu -f -o miniWeather4 --set full -k regex:.*compute_tendencies_z.* -c 1 -s 10 ./miniWeather
+
+# Does Nsight Compute tell us that we are in good shape with
+# this kernel? (What is it bound by)? If so, continue down the
+# list of most expensive kernels until you find one that needs
+# work according to the GPU Speed of Light section. Analyze that
+# kernel in Nsight Compute? Is it latency-bound, or compute-bound
+# and/or memory-bound? Scroll all the way down to the "Source Counters"
+# section and expand it. What does Nsight Compute tell us about
+# this kernel? What simple change can we make to the expensive line 
+# it points out? Apply that change and see if the code speeds up.
 
 # If you're stuck, you can see the solution with
 
