@@ -281,8 +281,8 @@ void compute_tendencies_z( double *state , double *flux , double *tend ) {
   hv_coef = -hv_beta * dz / (16*dt);
   //Compute fluxes in the x-direction for each cell
 #pragma acc parallel loop collapse(2) private(ll,s,inds,stencil,vals,d3_vals,r,u,w,t,p) default(present)
-  for (k=0; k<nz+1; k++) {
-    for (i=0; i<nx; i++) {
+  for (i=0; i<nx; i++) {
+    for (k=0; k<nz+1; k++) {
       //Use fourth-order interpolation from four cell averages to compute the value at the interface in question
       for (ll=0; ll<NUM_VARS; ll++) {
         for (s=0; s<sten_size; s++) {
