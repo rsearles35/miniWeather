@@ -8,7 +8,7 @@ nsys profile --stats=true -o miniWeather1 ./miniWeather
 
 # TASK 1: where does Nsight Systems tell us we are spending all of our time?
 # To answer this question, you can either look at the stdout from the above
-# profiling session, or you can load the generated file, miniWeather1.qdrep,
+# profiling session, or you can load the generated file, miniWeather1.nsys-rep,
 # into the Nsight Systems UI. Once you've determined what the most important
 # bottleneck is, modify the application driver to make this problem more
 # appropriate for the GPU (hint: is there a way we can amortize out the cost
