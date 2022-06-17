@@ -1,4 +1,4 @@
-# Profile the code again using Nsight Compute. What kernel is now
+# Profile the code again using Nsight Systems. What kernel is now
 # the most expensive? Use the CLI to collect a profile
 # of that kernel, and then analyze it in the Nsight Compute UI
 # after scp'ing the generated file (miniWeather5.ncu-rep) to your local system.
