@@ -128,13 +128,13 @@ int main(int argc, char **argv) {
           if (etime + dt > sim_time) { dt = sim_time - etime; }
 
           // Copy in the data we need for this step
-#pragma acc data copy(state_tmp[(nz+2*hs)*(nx+2*hs)*NUM_VARS]) \
-                 copy(hy_dens_cell[nz+2*hs]) \
-                 copy(hy_dens_theta_cell[nz+2*hs]) \
-                 copy(hy_dens_int[nz+1]) \
-                 copy(hy_dens_theta_int[nz+1]) \
-                 copy(hy_pressure_int[nz+1]) \
-                 copy(state[(nz+2*hs)*(nx+2*hs)*NUM_VARS])
+#pragma acc data copy(state_tmp[:(nz+2*hs)*(nx+2*hs)*NUM_VARS]) \
+                 copy(hy_dens_cell[:nz+2*hs]) \
+                 copy(hy_dens_theta_cell[:nz+2*hs]) \
+                 copy(hy_dens_int[:nz+1]) \
+                 copy(hy_dens_theta_int[:nz+1]) \
+                 copy(hy_pressure_int[:nz+1]) \
+                 copy(state[:(nz+2*hs)*(nx+2*hs)*NUM_VARS])
           {
               //Perform a single time step
               perform_timestep(state,state_tmp,flux,tend,dt);
