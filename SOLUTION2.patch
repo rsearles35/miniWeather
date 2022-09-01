@@ -3,25 +3,25 @@ index 437973c..d09577c 100644
 --- a/miniWeather.cpp
 +++ b/miniWeather.cpp
 @@ -121,24 +121,21 @@ int main(int argc, char **argv) {
-                  create(sendbuf_l[hs*nz*NUM_VARS]) \
-                  create(sendbuf_r[hs*nz*NUM_VARS]) \
-                  create(recvbuf_l[hs*nz*NUM_VARS]) \
--                 create(recvbuf_r[hs*nz*NUM_VARS])
+                  create(sendbuf_l[:hs*nz*NUM_VARS]) \
+                  create(sendbuf_r[:hs*nz*NUM_VARS]) \
+                  create(recvbuf_l[:hs*nz*NUM_VARS]) \
+-                 create(recvbuf_r[:hs*nz*NUM_VARS])
 -  {
 -      while (etime < sim_time) {
 -          //If the time step leads to exceeding the simulation time, shorten it for the last step
 -          if (etime + dt > sim_time) { dt = sim_time - etime; }
 -
 -          // Copy in the data we need for this step
--#pragma acc data copy(state_tmp[(nz+2*hs)*(nx+2*hs)*NUM_VARS]) \
-+                 create(recvbuf_r[hs*nz*NUM_VARS]) \
-+                 copy(state_tmp[(nz+2*hs)*(nx+2*hs)*NUM_VARS]) \
-                  copy(hy_dens_cell[nz+2*hs]) \
-                  copy(hy_dens_theta_cell[nz+2*hs]) \
-                  copy(hy_dens_int[nz+1]) \
-                  copy(hy_dens_theta_int[nz+1]) \
-                  copy(hy_pressure_int[nz+1]) \
-                  copy(state[(nz+2*hs)*(nx+2*hs)*NUM_VARS])
+-#pragma acc data copy(state_tmp[:(nz+2*hs)*(nx+2*hs)*NUM_VARS]) \
++                 create(recvbuf_r[:hs*nz*NUM_VARS]) \
++                 copy(state_tmp[:(nz+2*hs)*(nx+2*hs)*NUM_VARS]) \
+                  copy(hy_dens_cell[:nz+2*hs]) \
+                  copy(hy_dens_theta_cell[:nz+2*hs]) \
+                  copy(hy_dens_int[:nz+1]) \
+                  copy(hy_dens_theta_int[:nz+1]) \
+                  copy(hy_pressure_int[:nz+1]) \
+                  copy(state[:(nz+2*hs)*(nx+2*hs)*NUM_VARS])
 -          {
 -              //Perform a single time step
 -              perform_timestep(state,state_tmp,flux,tend,dt);
