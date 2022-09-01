@@ -116,12 +116,12 @@ int main(int argc, char **argv) {
   // MAIN TIME STEP LOOP
   ////////////////////////////////////////////////////
 
-#pragma acc data create(flux[(nz+1)*(nx+1)*NUM_VARS]) \
-                 create(tend[nz*nx*NUM_VARS]) \
-                 create(sendbuf_l[hs*nz*NUM_VARS]) \
-                 create(sendbuf_r[hs*nz*NUM_VARS]) \
-                 create(recvbuf_l[hs*nz*NUM_VARS]) \
-                 create(recvbuf_r[hs*nz*NUM_VARS])
+#pragma acc data create(flux[:(nz+1)*(nx+1)*NUM_VARS]) \
+                 create(tend[:nz*nx*NUM_VARS]) \
+                 create(sendbuf_l[:hs*nz*NUM_VARS]) \
+                 create(sendbuf_r[:hs*nz*NUM_VARS]) \
+                 create(recvbuf_l[:hs*nz*NUM_VARS]) \
+                 create(recvbuf_r[:hs*nz*NUM_VARS])
   {
       while (etime < sim_time) {
           //If the time step leads to exceeding the simulation time, shorten it for the last step
